@@ -1,3 +1,5 @@
+# Game_loop.py
+
 import pygame
 import sys
 import os
@@ -8,11 +10,9 @@ from src.Player import Player
 from src.load_image import load_image
 from src.levels import LEVELS
 from src.Platforms import Platform_Ground, FinishSprite
-from src.Draw_t_and_b import draw_text, draw_button
+from src.Draw_t_and_b import draw_text, draw_button, draw_slider, check_slider
 from src.audio_manager import AudioManager
-from src.Small_func import quit_game, set_paused
-from src.Coin import Coin
-
+from src.Small_func import quit_game, set_paused, is_paused
 
 # Инициализация Pygame
 pygame.init()
@@ -25,34 +25,133 @@ with open('settings.json', 'r') as f:
 WIDTH, HEIGHT = SETTINGS['resolution']
 SKY = (135, 206, 235)
 FONT_COLOR = (255, 255, 255)
-
 # Шрифты
 font = pygame.font.SysFont(None, 30)
 button_font = pygame.font.Font(None, 30)
 
 
-def random_level():
-    return random.randint(1, 5)
 
+
+def random_level():
+    return random.choice(list(LEVELS.keys()))
+
+
+
+def settings_menu(screen, audio_manager):
+    global SETTINGS
+
+    clock = pygame.time.Clock()
+    music_volume = SETTINGS.get('music_volume', 0.5)
+    sound_volume = SETTINGS.get('sound_volume', 0.5)
+
+    original_music_volume = music_volume
+    original_sound_volume = sound_volume
+
+    # Параметры ползунка
+    slider_width = 300
+    slider_height = 20
+    slider_x = WIDTH // 2 - slider_width // 2
+
+    while True:
+        screen.fill((0, 0, 0))
+        draw_text("Настройки", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 6)
+
+        # Ползунок громкости музыки
+        draw_text("Громкость музыки", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 3 - 30)
+        draw_slider(slider_x, HEIGHT // 3, slider_width, slider_height, music_volume, screen)
+
+        # Ползунок громкости звуков
+        draw_text("Громкость звуков", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 3 + 70)
+        draw_slider(slider_x, HEIGHT // 3 + 100, slider_width, slider_height, sound_volume, screen)
+
+        # Кнопка "Применить"
+        if draw_button("Применить", button_font, screen,
+                       WIDTH // 2 - 150, HEIGHT - 100, 140, 50,
+                       action=lambda: None,
+                       hover_color=(0, 200, 255), default_color=(0, 153, 200)):
+            SETTINGS['music_volume'] = music_volume
+            SETTINGS['sound_volume'] = sound_volume
+            with open('settings.json', 'w') as f:
+                json.dump(SETTINGS, f, indent=4)
+            return
+
+        # Кнопка "Отмена"
+        if draw_button("Отмена", button_font, screen,
+                       WIDTH // 2 + 10, HEIGHT - 100, 140, 50,
+                       action=lambda: None,
+                       hover_color=(200, 200, 200), default_color=(100, 100, 100)):
+            # Восстанавливаем оригинальные значения
+            audio_manager.set_music_volume(original_music_volume)
+            for sound in audio_manager.sounds.values():
+                sound.set_volume(original_sound_volume)
+            return
+
+        mouse_pos = pygame.mouse.get_pos()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                from src.Small_func import quit_game
+                quit_game()
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if check_slider(slider_x, HEIGHT // 3, slider_width, slider_height, mouse_pos):
+                    dragging = 'music'
+                elif check_slider(slider_x, HEIGHT // 3 + 100, slider_width, slider_height, mouse_pos):
+                    dragging = 'sound'
+                else:
+                    dragging = None
+
+                if dragging:
+                    is_dragging = True
+                    while is_dragging:
+                        for e in pygame.event.get():  # ← Новый способ отслеживания MOUSEBUTTONUP
+                            if e.type == pygame.MOUSEBUTTONUP:
+                                is_dragging = False
+                                break
+
+                        if not is_dragging:
+                            break
+
+                        new_mouse_pos = pygame.mouse.get_pos()
+                        rel_x = max(0, min(slider_width, new_mouse_pos[0] - slider_x))
+
+                        if dragging == 'music':
+                            music_volume = rel_x / slider_width
+                            audio_manager.set_music_volume(music_volume)
+                        else:
+                            sound_volume = rel_x / slider_width
+                            audio_manager.set_all_sounds_volume(sound_volume)
+
+                        pygame.event.pump()  # Избегаем зависания окна
+
+        pygame.display.flip()
+        clock.tick(60)
+
+def main_menu(screen):
+    from src.MyGame import Run
+    Run()
 
 def end_menu(screen):
     clock = pygame.time.Clock()
     running = True
 
-    bg_path = load_image("images/end_menu_background.png", scale_factor=1)
-
-    bg = pygame.image.load(bg_path)
-    bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
+    bg_raw = load_image("images/end_menu_background.png", scale_factor=1)
+    bg = pygame.transform.scale(bg_raw, (WIDTH, HEIGHT + 200))
 
     while running:
         screen.blit(bg, (0, 0))
         draw_text('Поздравляем, вы прошли игру!', font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 4)
 
-        draw_button('Новая игра', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2, 260, 60,
-                    action=lambda: start_new_game(screen), hover_color=(0, 200, 0), default_color=(0, 153, 0))
+        if draw_button('Новая игра', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2, 260, 60,
+                       action=lambda: start_new_game(screen), hover_color=(0, 200, 0), default_color=(0, 153, 0)):
+            pass
 
-        draw_button('Выход', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2 + 90, 260, 60,
-                    action=quit_game, hover_color=(200, 0, 0), default_color=(153, 0, 0))
+        if draw_button('В главное меню', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2 + 90, 260, 60,
+                       action=lambda: main_menu(screen), hover_color=(100, 100, 200), default_color=(80, 80, 150)):
+            pass
+
+        if draw_button('Выход', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2 + 180, 260, 60,
+                       action=quit_game, hover_color=(200, 0, 0), default_color=(153, 0, 0)):
+            pass
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -64,21 +163,45 @@ def end_menu(screen):
 
 def pause_menu(screen):
     clock = pygame.time.Clock()
-    paused = True
-
     bg_path = load_image("images/pause_menu_background.png", scale_factor=1)
-    bg = pygame.image.load(bg_path)
-    bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
+    bg = pygame.transform.scale(bg_path, (WIDTH, HEIGHT + 200))
 
-    while paused:
+    # Позиционирование кнопок по центру экрана, вертикально с одинаковым интервалом
+    button_width = 260
+    button_height = 60
+    button_x = WIDTH // 2 - button_width // 2
+
+    # Вертикальное расстояние между кнопками
+    vertical_spacing = 20
+    start_y = HEIGHT // 2 - (button_height + vertical_spacing)
+
+    while True:
         screen.blit(bg, (0, 0))
         draw_text('Пауза', font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 4)
 
-        draw_button('Продолжить', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2 - 50, 260, 60,
-                    action=lambda: set_paused(False), hover_color=(100, 200, 100), default_color=(0, 153, 0))
+        # Кнопка "Продолжить"
+        if draw_button('Продолжить', button_font, screen,
+                       button_x, start_y,
+                       button_width, button_height,
+                       action=lambda: set_paused(False),
+                       hover_color=(100, 200, 100), default_color=(0, 153, 0)):
+            break  # ← Выходим из меню паузы
 
-        draw_button('Выход', button_font, screen, WIDTH // 2 - 130, HEIGHT // 2 + 75, 260, 60,
-                    action=quit_game, hover_color=(200, 0, 0), default_color=(153, 0, 0))
+        # Кнопка "В главное меню"
+        if draw_button('В главное меню', button_font, screen,
+                       button_x, start_y + button_height + vertical_spacing,
+                       button_width, button_height,
+                       action=lambda: main_menu(screen),
+                       hover_color=(100, 100, 200), default_color=(80, 80, 150)):
+            pass  # ← Передача управления main_menu через lambda
+
+        # Кнопка "Выход"
+        if draw_button('Выход', button_font, screen,
+                       button_x, start_y + 2 * (button_height + vertical_spacing),
+                       button_width, button_height,
+                       action=quit_game,
+                       hover_color=(200, 0, 0), default_color=(153, 0, 0)):
+            pass
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -93,26 +216,22 @@ def next_level_screen(screen, level):
     font = pygame.font.SysFont(None, 60)
     small_font = pygame.font.SysFont(None, 30)
 
-    # Загружаем фон через load_image
     bg = load_image("images/end_menu_background.png", scale_factor=1)
-    bg = pygame.transform.scale(bg, (WIDTH, HEIGHT+200))
+    bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
 
-    # Создаём поверхность для затемнения
-    fade_surface = pygame.Surface((WIDTH, HEIGHT+200))
-    fade_surface.fill((0, 0, 0))  # Чёрный фон
-    fade_surface.set_alpha(0)  # Начинаем с прозрачности
+    fade_surface = pygame.Surface((WIDTH, HEIGHT + 200))
+    fade_surface.fill((0, 0, 0))
+    fade_surface.set_alpha(0)
 
-    # Сообщение игроку
     instruction_text = "Нажмите любую клавишу или мышь, чтобы продолжить"
     showing_instruction = False
-    instruction_timer = pygame.time.get_ticks() + 1500  # Показываем подсказку через 1.5 секунды
+    instruction_timer = pygame.time.get_ticks() + 1500
 
     running = True
     while running:
         now = pygame.time.get_ticks()
         screen.blit(bg, (0, 0))
 
-        # Анимация затухания фона
         for alpha in range(0, 255, 10):
             if not showing_instruction:
                 fade_surface.set_alpha(alpha)
@@ -132,12 +251,11 @@ def next_level_screen(screen, level):
 
         pygame.display.flip()
 
-        # Ждём нажатия
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit_game()
-            if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
-                running = False  # Выходим из цикла и переходим к следующему уровню
+            if event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
+                running = False
                 return
 
         clock.tick(60)
@@ -147,80 +265,75 @@ def start_new_game(screen):
     game_loop(screen, level=1)
 
 
-
-# Game_loop.py
-
 def game_loop(screen, level):
     all_sprites = pygame.sprite.Group()
     coins_group = pygame.sprite.Group()
 
-    # Игрок
+    # Создание игрока
     player = Player(WIDTH // 2, HEIGHT + 40, WIDTH, HEIGHT)
     all_sprites.add(player)
 
-    # Аудио
+    # Аудиоменеджер
     audio_manager = AudioManager()
-    audio_manager.load_music("in_game_music.mp3")
+    level_data = LEVELS[level]
+    music_path = level_data.get("music", "sounds/in_game_music.mp3")  # Берём музыку из levels.py
+    audio_manager.load_music(music_path)
     audio_manager.set_music_volume(SETTINGS['music_volume'])
     audio_manager.play_music(loops=-1)
 
+    # Звуки
     jump_sound = audio_manager.load_sound("jump_sound.wav")
     walk_sound = audio_manager.load_sound("walk_sound.wav")
     coin_sound = audio_manager.load_sound("coin_pickup.wav")
-    head_hit_sound = audio_manager.load_sound("head_hit.wav")
     level_complete_sound = audio_manager.load_sound("level_complete.wav")
     game_complete_sound = audio_manager.load_sound("game_complete.mp3")
 
     # Фон
-    bg_path = "images/layer-1.png"
+    bg_path = level_data["background"]
     bg = load_image(bg_path, scale_factor=1)
     bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 50))
 
-    # Основная платформа земли
-    ground = Platform_Ground(0, HEIGHT + 40, WIDTH + 100, 100, "images/layer-2.png")
+    # Земля
+    ground_image_path = level_data["ground_image"]  # Берём спрайт земли из levels.py
+    ground = Platform_Ground(0, HEIGHT + 40, WIDTH + 100, 100, ground_image_path)
     all_sprites.add(ground)
-
-    # Загрузка уровня
-    try:
-        level_data = LEVELS[level]
-    except KeyError:
-        print(f"Уровень {level} не найден.")
-        return
-
     platforms = pygame.sprite.Group()
     platforms.add(ground)
 
-    # Добавляем платформы
-    for platform in level_data["platforms"]:
+    # Платформы
+    for plat in level_data["platforms"]:
+        platform = Platform_Ground(
+            plat["x"], plat["y"], plat["width"], plat["height"], plat["image"]
+        )
         all_sprites.add(platform)
         platforms.add(platform)
 
-    # Добавляем монеты
+    # Монеты
+    from src.Coin import Coin
     for x, y in level_data["coins"]:
         coin = Coin(x, y)
         all_sprites.add(coin)
         coins_group.add(coin)
 
-    # Добавляем финиш
-    finish_sprite = FinishSprite(*level_data["finish"], os.path.join("images", "finish_image.jpg"))
+    # Финишная точка
+    finish_images = level_data.get("finish_images", [])
+    finish_sprite = FinishSprite(*level_data["finish"], finish_images)
     all_sprites.add(finish_sprite)
 
     running = True
     clock = pygame.time.Clock()
-    is_paused = False
     start_time = pygame.time.get_ticks()
     coins_collected = 0
 
     while running:
         clock.tick(60)
 
-        # Обработка событий
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit_game()
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP or event.key == pygame.K_SPACE:
+                if event.key in [pygame.K_UP, pygame.K_SPACE]:
                     player.jump()
                     audio_manager.play_sound(jump_sound)
                 if event.key == pygame.K_LEFT:
@@ -234,41 +347,42 @@ def game_loop(screen, level):
                 if event.key == pygame.K_ESCAPE:
                     set_paused(True)
                     pause_menu(screen)
-                    set_paused(False)
+                    # Ждём, пока пользователь продолжит игру
+                    while is_paused:
+                        pygame.time.delay(50)  # Вызываем меню паузы
 
             if event.type == pygame.KEYUP:
                 if event.key in [pygame.K_LEFT, pygame.K_RIGHT]:
                     player.x_speed = 0
 
-        if not is_paused:
-            # Обновление игрока и спрайтов
-            all_sprites.update(platforms)
+        # Обновление спрайтов
+        all_sprites.update(platforms)
 
-            # Сбор монет
-            collected = pygame.sprite.spritecollide(player, coins_group, True)
-            if collected:
-                coins_collected += len(collected)
-                audio_manager.play_sound(coin_sound)
+        # Сбор монет
+        collected = pygame.sprite.spritecollide(player, coins_group, True)
+        if collected:
+            coins_collected += len(collected)
+            audio_manager.play_sound(coin_sound)
 
-            # Проверка столкновения с финишем
-            if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
-                audio_manager.play_sound(level_complete_sound)
-                if level == 5:
-                    audio_manager.play_sound(game_complete_sound)
-                    running = False
-                    end_menu(screen)
-                else:
-                    next_level_screen(screen, level + 1)
-                    game_loop(screen, level + 1)
-                    return
+        # Проверка финиша
+        if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
+            audio_manager.play_sound(level_complete_sound)
+            if level == 4:
+                audio_manager.play_sound(game_complete_sound)
+                running = False
+                end_menu(screen)
+            else:
+                next_level_screen(screen, level + 1)
+                game_loop(screen, level + 1)
+                return
 
-            # Рендеринг
-            screen.blit(bg, (0, 0))
-            draw_text(f"Уровень: {level}", font, FONT_COLOR, screen, 20, 10, center=False)
-            draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen,
-                      WIDTH - 150, 10, center=False)
-            draw_text(f"Монеты: {coins_collected}", font, FONT_COLOR, screen, WIDTH // 2 - 50, 10, center=False)
-            all_sprites.draw(screen)
-            pygame.display.flip()
+        # Отрисовка экрана
+        screen.blit(bg, (0, 0))
+        draw_text(f"Уровень: {level}", font, FONT_COLOR, screen, 20, 10, center=False)
+        draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen,
+                  WIDTH - 150, 10, center=False)
+        draw_text(f"Монеты: {coins_collected}", font, FONT_COLOR, screen, WIDTH // 2 - 50, 10, center=False)
+        all_sprites.draw(screen)
+        pygame.display.flip()
 
     pygame.quit()
