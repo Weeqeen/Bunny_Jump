@@ -1,10 +1,11 @@
 import pygame
 import os
 
+
 class AudioManager:
     def __init__(self):
         pygame.mixer.init()
-        self.sounds = {}         # Храним загруженные звуки
+        self.sounds = {}
         self.sound_volume = 0.5
 
     def load_music(self, filename):

@@ -1,11 +1,11 @@
 import pygame
 from src.load_image import load_image
 
+
 class Coin(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
 
-        # Загрузка всех кадров анимации
         self.images = [
             load_image("images/coin_0.png", scale_factor=0.4),
             load_image("images/coin_45.png", scale_factor=0.4),
@@ -21,7 +21,7 @@ class Coin(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=(x, y))
 
         self.animation_index = 0
-        self.animation_speed = 100  # мс между кадрами
+        self.animation_speed = 100
         self.last_update = pygame.time.get_ticks()
 
     def update(self, *args):

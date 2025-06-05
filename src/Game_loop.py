@@ -1,5 +1,3 @@
-# Game_loop.py
-
 import pygame
 import sys
 import os
@@ -14,27 +12,21 @@ from src.Draw_t_and_b import draw_text, draw_button, draw_slider, check_slider
 from src.audio_manager import AudioManager
 from src.Small_func import quit_game, set_paused, is_paused
 
-# Инициализация Pygame
+
 pygame.init()
 
-# Загрузка настроек
 with open('settings.json', 'r') as f:
     SETTINGS = json.load(f)
 
-# Константы
 WIDTH, HEIGHT = SETTINGS['resolution']
 SKY = (135, 206, 235)
 FONT_COLOR = (255, 255, 255)
-# Шрифты
 font = pygame.font.SysFont(None, 30)
 button_font = pygame.font.Font(None, 30)
 
 
-
-
 def random_level():
     return random.choice(list(LEVELS.keys()))
-
 
 
 def settings_menu(screen, audio_manager):
@@ -47,7 +39,6 @@ def settings_menu(screen, audio_manager):
     original_music_volume = music_volume
     original_sound_volume = sound_volume
 
-    # Параметры ползунка
     slider_width = 300
     slider_height = 20
     slider_x = WIDTH // 2 - slider_width // 2
@@ -56,15 +47,12 @@ def settings_menu(screen, audio_manager):
         screen.fill((0, 0, 0))
         draw_text("Настройки", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 6)
 
-        # Ползунок громкости музыки
         draw_text("Громкость музыки", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 3 - 30)
         draw_slider(slider_x, HEIGHT // 3, slider_width, slider_height, music_volume, screen)
 
-        # Ползунок громкости звуков
         draw_text("Громкость звуков", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 3 + 70)
         draw_slider(slider_x, HEIGHT // 3 + 100, slider_width, slider_height, sound_volume, screen)
 
-        # Кнопка "Применить"
         if draw_button("Применить", button_font, screen,
                        WIDTH // 2 - 150, HEIGHT - 100, 140, 50,
                        action=lambda: None,
@@ -75,12 +63,10 @@ def settings_menu(screen, audio_manager):
                 json.dump(SETTINGS, f, indent=4)
             return
 
-        # Кнопка "Отмена"
         if draw_button("Отмена", button_font, screen,
                        WIDTH // 2 + 10, HEIGHT - 100, 140, 50,
                        action=lambda: None,
                        hover_color=(200, 200, 200), default_color=(100, 100, 100)):
-            # Восстанавливаем оригинальные значения
             audio_manager.set_music_volume(original_music_volume)
             for sound in audio_manager.sounds.values():
                 sound.set_volume(original_sound_volume)
@@ -103,7 +89,7 @@ def settings_menu(screen, audio_manager):
                 if dragging:
                     is_dragging = True
                     while is_dragging:
-                        for e in pygame.event.get():  # ← Новый способ отслеживания MOUSEBUTTONUP
+                        for e in pygame.event.get():
                             if e.type == pygame.MOUSEBUTTONUP:
                                 is_dragging = False
                                 break
@@ -121,14 +107,16 @@ def settings_menu(screen, audio_manager):
                             sound_volume = rel_x / slider_width
                             audio_manager.set_all_sounds_volume(sound_volume)
 
-                        pygame.event.pump()  # Избегаем зависания окна
+                        pygame.event.pump()
 
         pygame.display.flip()
         clock.tick(60)
 
+
 def main_menu(screen):
     from src.MyGame import Run
     Run()
+
 
 def end_menu(screen):
     clock = pygame.time.Clock()
@@ -166,12 +154,10 @@ def pause_menu(screen):
     bg_path = load_image("images/pause_menu_background.png", scale_factor=1)
     bg = pygame.transform.scale(bg_path, (WIDTH, HEIGHT + 200))
 
-    # Позиционирование кнопок по центру экрана, вертикально с одинаковым интервалом
     button_width = 260
     button_height = 60
     button_x = WIDTH // 2 - button_width // 2
 
-    # Вертикальное расстояние между кнопками
     vertical_spacing = 20
     start_y = HEIGHT // 2 - (button_height + vertical_spacing)
 
@@ -179,23 +165,20 @@ def pause_menu(screen):
         screen.blit(bg, (0, 0))
         draw_text('Пауза', font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 4)
 
-        # Кнопка "Продолжить"
         if draw_button('Продолжить', button_font, screen,
                        button_x, start_y,
                        button_width, button_height,
                        action=lambda: set_paused(False),
                        hover_color=(100, 200, 100), default_color=(0, 153, 0)):
-            break  # ← Выходим из меню паузы
+            break
 
-        # Кнопка "В главное меню"
         if draw_button('В главное меню', button_font, screen,
                        button_x, start_y + button_height + vertical_spacing,
                        button_width, button_height,
                        action=lambda: main_menu(screen),
                        hover_color=(100, 100, 200), default_color=(80, 80, 150)):
-            pass  # ← Передача управления main_menu через lambda
+            pass
 
-        # Кнопка "Выход"
         if draw_button('Выход', button_font, screen,
                        button_x, start_y + 2 * (button_height + vertical_spacing),
                        button_width, button_height,
@@ -269,38 +252,32 @@ def game_loop(screen, level):
     all_sprites = pygame.sprite.Group()
     coins_group = pygame.sprite.Group()
 
-    # Создание игрока
     player = Player(WIDTH // 2, HEIGHT + 40, WIDTH, HEIGHT)
     all_sprites.add(player)
 
-    # Аудиоменеджер
     audio_manager = AudioManager()
     level_data = LEVELS[level]
-    music_path = level_data.get("music", "sounds/in_game_music.mp3")  # Берём музыку из levels.py
+    music_path = level_data.get("music", "sounds/in_game_music.mp3")
     audio_manager.load_music(music_path)
     audio_manager.set_music_volume(SETTINGS['music_volume'])
     audio_manager.play_music(loops=-1)
 
-    # Звуки
     jump_sound = audio_manager.load_sound("jump_sound.wav")
     walk_sound = audio_manager.load_sound("walk_sound.wav")
     coin_sound = audio_manager.load_sound("coin_pickup.wav")
     level_complete_sound = audio_manager.load_sound("level_complete.wav")
     game_complete_sound = audio_manager.load_sound("game_complete.mp3")
 
-    # Фон
     bg_path = level_data["background"]
     bg = load_image(bg_path, scale_factor=1)
     bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 50))
 
-    # Земля
-    ground_image_path = level_data["ground_image"]  # Берём спрайт земли из levels.py
+    ground_image_path = level_data["ground_image"]
     ground = Platform_Ground(0, HEIGHT + 40, WIDTH + 100, 100, ground_image_path)
     all_sprites.add(ground)
     platforms = pygame.sprite.Group()
     platforms.add(ground)
 
-    # Платформы
     for plat in level_data["platforms"]:
         platform = Platform_Ground(
             plat["x"], plat["y"], plat["width"], plat["height"], plat["image"]
@@ -308,14 +285,12 @@ def game_loop(screen, level):
         all_sprites.add(platform)
         platforms.add(platform)
 
-    # Монеты
     from src.Coin import Coin
     for x, y in level_data["coins"]:
         coin = Coin(x, y)
         all_sprites.add(coin)
         coins_group.add(coin)
 
-    # Финишная точка
     finish_images = level_data.get("finish_images", [])
     finish_sprite = FinishSprite(*level_data["finish"], finish_images)
     all_sprites.add(finish_sprite)
@@ -347,24 +322,20 @@ def game_loop(screen, level):
                 if event.key == pygame.K_ESCAPE:
                     set_paused(True)
                     pause_menu(screen)
-                    # Ждём, пока пользователь продолжит игру
                     while is_paused:
-                        pygame.time.delay(50)  # Вызываем меню паузы
+                        pygame.time.delay(50)
 
             if event.type == pygame.KEYUP:
                 if event.key in [pygame.K_LEFT, pygame.K_RIGHT]:
                     player.x_speed = 0
 
-        # Обновление спрайтов
         all_sprites.update(platforms)
 
-        # Сбор монет
         collected = pygame.sprite.spritecollide(player, coins_group, True)
         if collected:
             coins_collected += len(collected)
             audio_manager.play_sound(coin_sound)
 
-        # Проверка финиша
         if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
             audio_manager.play_sound(level_complete_sound)
             if level == 4:
@@ -376,7 +347,6 @@ def game_loop(screen, level):
                 game_loop(screen, level + 1)
                 return
 
-        # Отрисовка экрана
         screen.blit(bg, (0, 0))
         draw_text(f"Уровень: {level}", font, FONT_COLOR, screen, 20, 10, center=False)
         draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen,

@@ -1,10 +1,10 @@
-# Draw_t_and_b.py
-
 import pygame
+
 
 FONT_COLOR = (255, 255, 255)
 BUTTON_DEFAULT_COLOR = (0, 153, 0)
 BUTTON_HOVER_COLOR = (0, 200, 0)
+
 
 def draw_text(text, font, color, surface, x, y, center=True):
     text_surface = font.render(text, True, color)
@@ -29,17 +29,15 @@ def draw_button(text, font, surface, x, y, width, height, action=None,
     if hovered and mouse_click[0]:
         if action:
             action()
-        return True  # ← Это важно!
+        return True
     return False
 
-# Новые функции для интерфейса настроек
+
 def draw_slider(x, y, width, height, value, surface):
-    # Рисует полоску ползунка
     pygame.draw.rect(surface, (100, 100, 100), (x, y, width, height))
-    # Рисует бегунок
     slider_x = x + int(value * width)
     pygame.draw.circle(surface, (255, 255, 255), (slider_x, y + height // 2), 10)
 
+
 def check_slider(x, y, width, height, mouse_pos):
-    # Проверяет, находится ли курсор над полоской
     return x < mouse_pos[0] < x + width and y < mouse_pos[1] < y + height

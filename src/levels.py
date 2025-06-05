@@ -1,4 +1,3 @@
-# levels.py
 LEVELS = {
     1: {
         "background": "images/levels/layer-1.png",

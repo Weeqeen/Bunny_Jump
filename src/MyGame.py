@@ -1,14 +1,11 @@
-# MyGame.py
-
 import pygame
 import sys
 import os
 import json
 
-# 1. Сначала инициализируем pygame
+
 pygame.init()
 
-# 2. Теперь загружаем настройки
 with open('settings.json', 'r') as f:
     SETTINGS = json.load(f)
 
@@ -18,24 +15,24 @@ FONT_COLOR = (255, 255, 255)
 FONT_SIZE = 48
 BUTTON_FONT_SIZE = 30
 
-# 3. Создаём экран
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if SETTINGS['fullscreen'] else 0)
 pygame.display.set_caption("Jump 'n' Run")
 
-# 4. Шрифты
 font = pygame.font.SysFont(None, FONT_SIZE)
 button_font = pygame.font.Font(None, BUTTON_FONT_SIZE)
 
 clock = pygame.time.Clock()
 
-# 5. Только после pygame.init() делаем импорты из src/
+
 from src.load_image import load_image
 from src.Game_loop import game_loop, random_level, settings_menu, start_new_game
 from src.Small_func import quit_game
 from src.Draw_t_and_b import draw_text, draw_button
 from src.audio_manager import AudioManager
 
+
 audio_manager_global = None
+
 
 def Run():
     running = True
