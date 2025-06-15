@@ -1,0 +1,12 @@
+# Ignore PyCharm files
+.idea
+*.pyc
+__pycache__
+build/
+dist/
+*.spec
+*_spec.py
+*.exe
+settings.pkl
+*.log
+*.tmp
