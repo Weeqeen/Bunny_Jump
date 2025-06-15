@@ -1,5 +1,6 @@
 import pygame
 from src.load_image import load_image
+from src.Small_func import resource_path
 
 
 class Player(pygame.sprite.Sprite):
@@ -15,26 +16,26 @@ class Player(pygame.sprite.Sprite):
         scale_factor = 0.8
 
         self.images = {
-            "idle": load_image("images/Стойка.png", scale_factor),
+            "idle": load_image(resource_path("images/Стойка.png"), scale_factor),
             "right": [
-                load_image("images/Бег1.png", scale_factor),
-                load_image("images/Бег2.png", scale_factor),
-                load_image("images/Бег3.png", scale_factor),
-                load_image("images/Бег4.png", scale_factor),
-                load_image("images/Бег5.png", scale_factor),
-                load_image("images/Бег6.png", scale_factor)
+                load_image(resource_path("images/Бег1.png"), scale_factor),
+                load_image(resource_path("images/Бег2.png"), scale_factor),
+                load_image(resource_path("images/Бег3.png"), scale_factor),
+                load_image(resource_path("images/Бег4.png"), scale_factor),
+                load_image(resource_path("images/Бег5.png"), scale_factor),
+                load_image(resource_path("images/Бег6.png"), scale_factor)
             ],
             "left": [
-                pygame.transform.flip(load_image("images/Бег1.png", scale_factor), True, False),
-                pygame.transform.flip(load_image("images/Бег2.png", scale_factor), True, False),
-                pygame.transform.flip(load_image("images/Бег3.png", scale_factor), True, False),
-                pygame.transform.flip(load_image("images/Бег4.png", scale_factor), True, False),
-                pygame.transform.flip(load_image("images/Бег5.png", scale_factor), True, False),
-                pygame.transform.flip(load_image("images/Бег6.png", scale_factor), True, False)
+                pygame.transform.flip(load_image(resource_path("images/Бег1.png"), scale_factor), True, False),
+                pygame.transform.flip(load_image(resource_path("images/Бег2.png"), scale_factor), True, False),
+                pygame.transform.flip(load_image(resource_path("images/Бег3.png"), scale_factor), True, False),
+                pygame.transform.flip(load_image(resource_path("images/Бег4.png"), scale_factor), True, False),
+                pygame.transform.flip(load_image(resource_path("images/Бег5.png"), scale_factor), True, False),
+                pygame.transform.flip(load_image(resource_path("images/Бег6.png"), scale_factor), True, False)
             ],
-            "jump_right": load_image("images/Прыжок3.png", scale_factor),
+            "jump_right": load_image(resource_path("images/Прыжок3.png"), scale_factor),
             "jump_left": pygame.transform.flip(
-                load_image("images/Прыжок3.png", scale_factor), True, False),
+                load_image(resource_path("images/Прыжок3.png"), scale_factor), True, False),
         }
 
         self.image = self.images["idle"]

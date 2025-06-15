@@ -1,32 +1,68 @@
 import pygame
 import sys
 import os
-import json
 import random
+import pickle
 
+from pygame.mixer_music import set_volume
 from src.Player import Player
 from src.load_image import load_image
 from src.levels import LEVELS
 from src.Platforms import Platform_Ground, FinishSprite
 from src.Draw_t_and_b import draw_text, draw_button, draw_slider, check_slider
 from src.audio_manager import AudioManager
-from src.Small_func import quit_game, set_paused, is_paused
+from src.Small_func import quit_game, set_paused, is_paused, resource_path
 
 
 pygame.init()
 
-with open('settings.json', 'r') as f:
-    SETTINGS = json.load(f)
+SETTINGS = {
+    "fullscreen": True,
+    "resolution": [
+        1024,
+        650
+    ],
+    "music_volume": 0.65,
+    "sound_volume": 0.6366666666666667
+}
 
 WIDTH, HEIGHT = SETTINGS['resolution']
 SKY = (135, 206, 235)
 FONT_COLOR = (255, 255, 255)
+FONT_COLOR_blue = (0, 0, 51)
 font = pygame.font.SysFont(None, 30)
 button_font = pygame.font.Font(None, 30)
 
 
 def random_level():
     return random.choice(list(LEVELS.keys()))
+
+
+def save_settings():
+    settings = {
+        'music_volume': SETTINGS['music_volume'],
+        'sound_volume': SETTINGS['sound_volume']
+    }
+    with open('settings.pkl', 'wb') as f:
+        pickle.dump(settings, f)
+
+
+def load_settings():
+    global SETTINGS
+    try:
+        with open('settings.pkl', 'rb') as f:
+            data = f.read()
+            if not data:
+                raise EOFError("Файл settings.pkl пуст")
+            loaded_settings = pickle.loads(data)
+            SETTINGS['music_volume'] = loaded_settings.get('music_volume', 0.5)
+            SETTINGS['sound_volume'] = loaded_settings.get('sound_volume', 0.5)
+    except (FileNotFoundError, EOFError, pickle.PickleError):
+        SETTINGS['music_volume'] = 0.5
+        SETTINGS['sound_volume'] = 0.5
+        save_settings()
+
+load_settings()
 
 
 def settings_menu(screen, audio_manager):
@@ -59,8 +95,7 @@ def settings_menu(screen, audio_manager):
                        hover_color=(0, 200, 255), default_color=(0, 153, 200)):
             SETTINGS['music_volume'] = music_volume
             SETTINGS['sound_volume'] = sound_volume
-            with open('settings.json', 'w') as f:
-                json.dump(SETTINGS, f, indent=4)
+            save_settings()
             return
 
         if draw_button("Отмена", button_font, screen,
@@ -122,7 +157,7 @@ def end_menu(screen):
     clock = pygame.time.Clock()
     running = True
 
-    bg_raw = load_image("images/end_menu_background.png", scale_factor=1)
+    bg_raw = load_image(resource_path("images/end_menu_background.png"), scale_factor=1)
     bg = pygame.transform.scale(bg_raw, (WIDTH, HEIGHT + 200))
 
     while running:
@@ -151,7 +186,7 @@ def end_menu(screen):
 
 def pause_menu(screen):
     clock = pygame.time.Clock()
-    bg_path = load_image("images/pause_menu_background.png", scale_factor=1)
+    bg_path = load_image(resource_path("images/pause_menu_background.png"), scale_factor=1)
     bg = pygame.transform.scale(bg_path, (WIDTH, HEIGHT + 200))
 
     button_width = 260
@@ -194,45 +229,68 @@ def pause_menu(screen):
         clock.tick(60)
 
 
-def next_level_screen(screen, level):
-    clock = pygame.time.Clock()
-    font = pygame.font.SysFont(None, 60)
-    small_font = pygame.font.SysFont(None, 30)
+def calculate_stars(carrots_collected, total_carrots, time_taken):
+    if total_carrots == 0:
+        return 0
 
-    bg = load_image("images/end_menu_background.png", scale_factor=1)
+    collected_ratio = carrots_collected / total_carrots
+
+    if carrots_collected == total_carrots and time_taken < 30:
+        return 3
+    elif collected_ratio >= 0.5 and time_taken < 30:
+        return 2
+    elif carrots_collected == total_carrots and 30 <= time_taken < 45:
+        return 2
+    elif carrots_collected == total_carrots and time_taken >= 45:
+        return 1
+    else:
+        return 1
+
+
+def display_stars(surface, stars, x, y):
+    STAR_SIZE = 40
+    SPACING = 10
+    full_star = load_image(resource_path("images/star_full.png"), scale_factor=1)
+    empty_star = load_image(resource_path("images/star_empty.png"), scale_factor=1)
+    full_star = pygame.transform.scale(full_star, (STAR_SIZE, STAR_SIZE))
+    empty_star = pygame.transform.scale(empty_star, (STAR_SIZE, STAR_SIZE))
+
+    for i in range(3):
+        if i < stars:
+            surface.blit(full_star, (x + i * (STAR_SIZE + SPACING), y))
+        else:
+            surface.blit(empty_star, (x + i * (STAR_SIZE + SPACING), y))
+
+    for i in range(3):
+        if i < stars:
+            surface.blit(full_star, (x + i * (STAR_SIZE + SPACING), y))
+        else:
+            surface.blit(empty_star, (x + i * (STAR_SIZE + SPACING), y))
+
+
+def next_level_screen(screen, level, total_carrots=0, carrots_collected=0, time_taken=0):
+    clock = pygame.time.Clock()
+    bg = load_image(resource_path("images/sky3.jpg"), scale_factor=1)
     bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
 
-    fade_surface = pygame.Surface((WIDTH, HEIGHT + 200))
-    fade_surface.fill((0, 0, 0))
-    fade_surface.set_alpha(0)
+    stars = calculate_stars(carrots_collected, total_carrots, time_taken)
 
     instruction_text = "Нажмите любую клавишу или мышь, чтобы продолжить"
-    showing_instruction = False
-    instruction_timer = pygame.time.get_ticks() + 1500
-
     running = True
+
     while running:
-        now = pygame.time.get_ticks()
         screen.blit(bg, (0, 0))
 
-        for alpha in range(0, 255, 10):
-            if not showing_instruction:
-                fade_surface.set_alpha(alpha)
-                screen.blit(fade_surface, (0, 0))
-                draw_text(f"Уровень {level}", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 2)
-                pygame.display.flip()
-                pygame.time.delay(30)
-                if alpha >= 250:
-                    showing_instruction = True
+        draw_text(f"Уровень {level}", font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 - 80)
 
-        if showing_instruction:
-            fade_surface.set_alpha(255)
-            screen.blit(fade_surface, (0, 0))
-            draw_text(f"Уровень {level}", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 2 - 40)
-            if now > instruction_timer:
-                draw_text(instruction_text, small_font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 2 + 40)
+        draw_text(f"Собрано морковок: {carrots_collected}/{total_carrots}",
+                  button_font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 - 20, center=True)
+        draw_text(f"Время: {int(time_taken)} секунд",
+                  button_font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 + 20, center=True)
 
-        pygame.display.flip()
+        display_stars(screen, stars, x=WIDTH // 2 - 75, y=HEIGHT // 2 + 60)
+
+        draw_text(instruction_text, button_font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 + 140)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -241,6 +299,7 @@ def next_level_screen(screen, level):
                 running = False
                 return
 
+        pygame.display.flip()
         clock.tick(60)
 
 
@@ -250,7 +309,7 @@ def start_new_game(screen):
 
 def game_loop(screen, level):
     all_sprites = pygame.sprite.Group()
-    coins_group = pygame.sprite.Group()
+    carrots_group = pygame.sprite.Group()
 
     player = Player(WIDTH // 2, HEIGHT + 40, WIDTH, HEIGHT)
     all_sprites.add(player)
@@ -258,18 +317,20 @@ def game_loop(screen, level):
     audio_manager = AudioManager()
     level_data = LEVELS[level]
     music_path = level_data.get("music", "sounds/in_game_music.mp3")
-    audio_manager.load_music(music_path)
+    audio_manager.load_music(resource_path(music_path))
     audio_manager.set_music_volume(SETTINGS['music_volume'])
     audio_manager.play_music(loops=-1)
 
-    jump_sound = audio_manager.load_sound("jump_sound.wav")
-    walk_sound = audio_manager.load_sound("walk_sound.wav")
-    coin_sound = audio_manager.load_sound("coin_pickup.wav")
-    level_complete_sound = audio_manager.load_sound("level_complete.wav")
-    game_complete_sound = audio_manager.load_sound("game_complete.mp3")
+    jump_sound = audio_manager.load_sound(resource_path("sounds/jump_sound.wav"))
+    jump_sound.set_volume(0.2)
+    walk_sound = audio_manager.load_sound(resource_path("sounds/walk_sound.wav"))
+    carrot_sound = audio_manager.load_sound(resource_path("sounds/carrot_pickup.mp3"))
+    carrot_sound.set_volume(1.0)
+    level_complete_sound = audio_manager.load_sound(resource_path("sounds/level_complete.wav"))
+    game_complete_sound = audio_manager.load_sound(resource_path("sounds/game_complete.mp3"))
 
     bg_path = level_data["background"]
-    bg = load_image(bg_path, scale_factor=1)
+    bg = load_image(resource_path(bg_path), scale_factor=1)
     bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 50))
 
     ground_image_path = level_data["ground_image"]
@@ -285,11 +346,11 @@ def game_loop(screen, level):
         all_sprites.add(platform)
         platforms.add(platform)
 
-    from src.Coin import Coin
-    for x, y in level_data["coins"]:
-        coin = Coin(x, y)
-        all_sprites.add(coin)
-        coins_group.add(coin)
+    from src.Carrot import Carrot
+    for x, y in level_data["carrots"]:
+        carrot = Carrot(x, y)
+        all_sprites.add(carrot)
+        carrots_group.add(carrot)
 
     finish_images = level_data.get("finish_images", [])
     finish_sprite = FinishSprite(*level_data["finish"], finish_images)
@@ -298,7 +359,7 @@ def game_loop(screen, level):
     running = True
     clock = pygame.time.Clock()
     start_time = pygame.time.get_ticks()
-    coins_collected = 0
+    carrots_collected = 0
 
     while running:
         clock.tick(60)
@@ -331,10 +392,10 @@ def game_loop(screen, level):
 
         all_sprites.update(platforms)
 
-        collected = pygame.sprite.spritecollide(player, coins_group, True)
+        collected = pygame.sprite.spritecollide(player, carrots_group, True)
         if collected:
-            coins_collected += len(collected)
-            audio_manager.play_sound(coin_sound)
+            carrots_collected += len(collected)
+            audio_manager.play_sound(carrot_sound)
 
         if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
             audio_manager.play_sound(level_complete_sound)
@@ -343,7 +404,10 @@ def game_loop(screen, level):
                 running = False
                 end_menu(screen)
             else:
-                next_level_screen(screen, level + 1)
+                next_level_screen(screen, level + 1,
+                                  total_carrots=len(level_data["carrots"]),
+                                  carrots_collected=carrots_collected,
+                                  time_taken=(pygame.time.get_ticks() - start_time) / 1000)
                 game_loop(screen, level + 1)
                 return
 
@@ -351,8 +415,7 @@ def game_loop(screen, level):
         draw_text(f"Уровень: {level}", font, FONT_COLOR, screen, 20, 10, center=False)
         draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen,
                   WIDTH - 150, 10, center=False)
-        draw_text(f"Монеты: {coins_collected}", font, FONT_COLOR, screen, WIDTH // 2 - 50, 10, center=False)
-        all_sprites.draw(screen)
+        draw_text(f"Морковки: {carrots_collected}", font, FONT_COLOR, screen, WIDTH // 2 - 50, 10, center=False),       all_sprites.draw(screen)
         pygame.display.flip()
 
     pygame.quit()

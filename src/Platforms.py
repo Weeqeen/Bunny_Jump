@@ -1,5 +1,7 @@
 import pygame
 from src.load_image import load_image
+from src.Small_func import resource_path
+
 
 
 class Platform(pygame.sprite.Sprite):
@@ -13,7 +15,7 @@ class Platform(pygame.sprite.Sprite):
 class Platform_Ground(Platform):
     def __init__(self, x, y, width, height, sprite_path):
         super().__init__(x, y, width, height)
-        self.image = load_image(sprite_path, scale_factor=1)
+        self.image = load_image(resource_path(sprite_path), scale_factor=1)
         self.image = pygame.transform.scale(self.image, (width, height))
         self.rect = self.image.get_rect(topleft=(x, y))
 
@@ -21,7 +23,7 @@ class Platform_Ground(Platform):
 class FinishSprite(pygame.sprite.Sprite):
     def __init__(self, x, y, image_paths):
         super().__init__()
-        self.images = [load_image(path, scale_factor=1.5) for path in image_paths]
+        self.images = [load_image(resource_path(path), scale_factor=1.5) for path in image_paths]
         self.image = self.images[0]
         self.rect = self.image.get_rect(topleft=(x, y))
         self.animation_index = 0

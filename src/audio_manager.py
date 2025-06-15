@@ -1,5 +1,6 @@
 import pygame
 import os
+from src.Small_func import resource_path
 
 
 class AudioManager:
@@ -10,7 +11,7 @@ class AudioManager:
 
     def load_music(self, filename):
         self.music_path = filename
-        pygame.mixer.music.load(self.music_path)
+        pygame.mixer.music.load(resource_path(self.music_path))
 
     def play_music(self, loops=-1):
         pygame.mixer.music.play(loops)
