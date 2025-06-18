@@ -12,6 +12,7 @@ from src.Platforms import Platform_Ground, FinishSprite
 from src.Draw_t_and_b import draw_text, draw_button, draw_slider, check_slider
 from src.audio_manager import AudioManager
 from src.Small_func import quit_game, set_paused, is_paused, resource_path
+from src.Enemy import Enemy, Boss
 
 
 
@@ -35,6 +36,7 @@ font = pygame.font.SysFont(None, 30)
 button_font = pygame.font.Font(None, 30)
 
 total_carrots_collected = 0
+
 
 
 def random_level():
@@ -257,7 +259,7 @@ def next_level_screen(screen, level, total_carrots=0, carrots_collected=0, time_
     while running:
         screen.blit(bg, (0, 0))
 
-        draw_text(f"Уровень {level}", font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 - 80)
+        draw_text(f"Уровень {level- 1}", font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 - 80)
 
         draw_text(f"Собрано морковок: {carrots_collected}/{total_carrots}",
                   button_font, FONT_COLOR_blue, screen, WIDTH // 2, HEIGHT // 2 - 20, center=True)
@@ -361,11 +363,35 @@ def show_ghost(screen, audio_manager):
         clock.tick(60)
 
 
+def show_game_over_screen(screen):
+    clock = pygame.time.Clock()
+    bg = load_image(resource_path("images/sky3.jpg"), scale_factor=1)
+    bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
+    while True:
+        screen.blit(bg, (0, 0))
+        draw_text("GAME OVER", font, FONT_COLOR, screen, WIDTH // 2, HEIGHT // 3)
+        draw_text("Нажмите любую клавишу, чтобы вернуться в меню", button_font, FONT_COLOR, screen, WIDTH // 2,
+                  HEIGHT // 2)
+
+        # Обработка событий
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                quit_game()
+            if event.type in [pygame.KEYDOWN, pygame.MOUSEBUTTONDOWN]:
+                main_menu(screen)  # Вернуться в главное меню
+                return
+
+        pygame.display.flip()
+        clock.tick(60)
+
+
+
 def game_loop(screen, level):
     all_sprites = pygame.sprite.Group()
     carrots_group = pygame.sprite.Group()
-
-    player = Player(WIDTH // 2, HEIGHT + 40, WIDTH, HEIGHT)
+    player = Player(WIDTH // 2 - 200, HEIGHT + 40, WIDTH, HEIGHT)
+    player.level_number = level
+    player.lives = 5
     all_sprites.add(player)
 
     audio_manager = AudioManager()
@@ -376,11 +402,15 @@ def game_loop(screen, level):
     audio_manager.play_music(loops=-1)
 
     jump_sound = audio_manager.load_sound(resource_path("sounds/jump_sound.wav"))
-    jump_sound.set_volume(0.2)
+    jump_sound.set_volume(0.1)
     walk_sound = audio_manager.load_sound(resource_path("sounds/walk_sound.wav"))
+    demon_death = audio_manager.load_sound(resource_path("sounds/demon_death.mp3"))
+    demon_death.set_volume(1.0)
     carrot_sound = audio_manager.load_sound(resource_path("sounds/carrot_pickup.mp3"))
     carrot_sound.set_volume(1.0)
     level_complete_sound = audio_manager.load_sound(resource_path("sounds/level_complete.wav"))
+    kick_sound = audio_manager.load_sound(resource_path("sounds/kick_sound.wav"))
+    kick_sound.set_volume(0.1)
 
     bg_path = level_data["background"]
     bg = load_image(resource_path(bg_path), scale_factor=1)
@@ -389,6 +419,7 @@ def game_loop(screen, level):
     ground_image_path = level_data["ground_image"]
     ground = Platform_Ground(0, HEIGHT + 40, WIDTH + 100, 100, ground_image_path)
     all_sprites.add(ground)
+
     platforms = pygame.sprite.Group()
     platforms.add(ground)
 
@@ -405,9 +436,36 @@ def game_loop(screen, level):
         all_sprites.add(carrot)
         carrots_group.add(carrot)
 
+    enemies_group = pygame.sprite.Group()
+    for enemy_data in level_data.get("enemies", []):
+        enemy = Enemy(
+            enemy_data["x"],
+            enemy_data["y"],
+            enemy_data.get("move_range", 150),
+            enemy_data.get("speed", 2)
+        )
+        all_sprites.add(enemy)
+        enemies_group.add(enemy)
+
     finish_images = level_data.get("finish_images", [])
     finish_sprite = FinishSprite(*level_data["finish"], finish_images)
     all_sprites.add(finish_sprite)
+
+    # Загрузка босса на уровень 4
+    boss_group = pygame.sprite.Group()
+    if level == 4 and "boss" in level_data:
+        boss_info = level_data["boss"]
+        boss = Boss(
+            x=boss_info["x"],
+            y=boss_info["y"],
+            move_range=boss_info.get("move_range", 200),
+            speed=boss_info.get("speed", 2),
+            health=boss_info.get("health", 20)
+        )
+        all_sprites.add(boss)
+        boss_group.add(boss)
+
+
 
     running = True
     clock = pygame.time.Clock()
@@ -416,11 +474,9 @@ def game_loop(screen, level):
 
     while running:
         clock.tick(60)
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit_game()
-
             if event.type == pygame.KEYDOWN:
                 if event.key in [pygame.K_UP, pygame.K_SPACE]:
                     player.jump()
@@ -438,13 +494,28 @@ def game_loop(screen, level):
                     pause_menu(screen, level)
                     while is_paused:
                         pygame.time.delay(50)
-
             if event.type == pygame.KEYUP:
                 if event.key in [pygame.K_LEFT, pygame.K_RIGHT]:
                     player.x_speed = 0
 
-        all_sprites.update(platforms)
+        # Обновление игрока и врагов
+        player.update(platforms, enemies_group, audio_manager, kick_sound)
+        enemies_group.update()
 
+        if player.rect.top > HEIGHT + 200:
+            player.take_damage()
+            if player.lives <= 0:
+                audio_manager.stop_all_sounds()
+                show_game_over_screen(screen)
+                return
+            else:
+                restart_level(screen, level)
+                return
+
+        boss_group.update(player.rect)  # Вызывает handle_ai и animate
+
+
+                # Сбор морковок
         collected = pygame.sprite.spritecollide(player, carrots_group, True)
         if collected:
             carrots_collected += len(collected)
@@ -452,27 +523,100 @@ def game_loop(screen, level):
             total_carrots_collected += len(collected)
             audio_manager.play_sound(carrot_sound)
 
-        if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
-            audio_manager.play_sound(level_complete_sound)
-            if level == 4:
-                pygame.mixer.music.stop()
-                if total_carrots_collected > 10:
-                    show_victory(screen, audio_manager)
-                else:
-                    show_ghost(screen, audio_manager)
+        enemy_collision = pygame.sprite.spritecollide(player, enemies_group, False)
+        for enemy in enemy_collision:
+            # Проверяем, был ли прыжок сверху (убийство врага)
+            if player.y_speed > 0 and player.rect.bottom <= enemy.rect.top + 10:
+                enemies_group.remove(enemy)
+                enemy.kill()
+                player.y_speed = -8
+                audio_manager.play_sound(kick_sound)
             else:
+                # Столкновение сбоку/снизу — игрок получает урон и отбрасывается
+                player.lives -= 1
+                if player.lives <= 0:
+                    audio_manager.stop_all_sounds()
+                    show_game_over_screen(screen)
+                    return
+                else:
+                    # Определяем направление отбрасывания
+                    if player.rect.centerx < enemy.rect.centerx:
+                        # Игрок слева от врага → отбрасываем влево
+                        player.rect.x = max(0, player.rect.x - 150)
+                    else:
+                        # Игрок справа от врага → отбрасываем вправо
+                        player.rect.x = min(WIDTH - player.rect.width, player.rect.x + 150)
+
+                    player.rect.y = player.rect.bottom - player.rect.height
+                    player.y_speed = 0
+                    player._is_jumping = False
+
+        # Столкновение с боссом (прыжок сверху)
+        # Столкновение с боссом
+        boss_hits = pygame.sprite.spritecollide(player, boss_group, False)
+        for boss in boss_hits:
+            # Прыжок сверху — игрок атакует босса
+            if player.y_speed > 0 and player.rect.bottom <= boss.rect.top + 10:
+                boss.take_damage()
+                player.y_speed = -8  # Отскок вверх
+                audio_manager.play_sound(kick_sound)
+                print(f"HP босса: {boss.health}")
+
+                # Отбрасываем игрока
+                if player.rect.centerx < boss.rect.centerx:
+                    player.rect.x -= 100  # Влево
+                else:
+                    player.rect.x += 100  # Вправо
+
+            # Иначе — игрок получает урон от босса
+            else:
+                if hasattr(boss, 'take_damage'):
+                    # Игрок теряет жизнь только один раз за касание
+                    # Чтобы не терять жизни каждую секунду, можно использовать глобальную проверку
+                    global boss_can_damage
+                    if not hasattr(boss, "last_hit_time") or pygame.time.get_ticks() - boss.last_hit_time > 1000:
+                        player.take_damage()
+                        boss.last_hit_time = pygame.time.get_ticks()
+
+                        # Отбрасываем игрока
+                        if player.rect.centerx < boss.rect.centerx:
+                            player.rect.x -= 100  # Влево
+                        else:
+                            player.rect.x += 100  # Вправо
+
+                # Проверка условия завершения уровня
+        if level == 4:
+            if not boss_group:
+                audio_manager.play_sound(demon_death)
+                pygame.time.delay(2000)
+                audio_manager.stop_all_sounds()
+                # Победа над боссом → показываем экран победы
+                show_victory(screen, audio_manager)
+                return
+        else:
+            if finish_sprite and pygame.sprite.collide_rect(player, finish_sprite):
+                audio_manager.play_sound(level_complete_sound)
                 next_level_screen(screen, level + 1,
                                   total_carrots=len(level_data["carrots"]),
                                   carrots_collected=carrots_collected,
                                   time_taken=(pygame.time.get_ticks() - start_time) / 1000)
-                game_loop(screen, level + 1)
+                running = False  # выходим из текущего цикла
+                game_loop(screen, level+1)
                 return
 
+        # Отрисовка
         screen.blit(bg, (0, 0))
         draw_text(f"Уровень: {level}", font, FONT_COLOR, screen, 20, 10, center=False)
-        draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen,
-                  WIDTH - 150, 10, center=False)
-        draw_text(f"Морковки: {carrots_collected}", font, FONT_COLOR, screen, WIDTH // 2 - 50, 10, center=False),       all_sprites.draw(screen)
+        draw_text(f"Время: {int((pygame.time.get_ticks() - start_time) / 1000)}", font, FONT_COLOR, screen, 22, 35,
+                  center=False)
+        draw_text(f"Морковки: {total_carrots_collected}", font, FONT_COLOR, screen, 850, 35, center=False)
+        draw_text(f"Жизни игрока: {player.lives}", font, FONT_COLOR, screen, 850, 10, center=False)
+        # --- Отображение здоровья босса (только на уровне 4) ---
+        if level == 4 and boss_group:
+            for boss in boss_group:
+                # Выводим здоровье босса
+                font_hp = pygame.font.Font(None, 36)
+                health_text = font_hp.render(f"Босс HP: {boss.health}", True, (255, 0, 0))  # Красный текст
+                screen.blit(health_text, (WIDTH // 2 - 80, 20))
+        all_sprites.draw(screen)
         pygame.display.flip()
-
-    pygame.quit()

@@ -8,10 +8,12 @@ class Player(pygame.sprite.Sprite):
     MAX_SPEED = 5
     GRAVITY = 1
     JUMP_FORCE = -15
+    DOUBLE_JUMP_FORCE = -15
 
     def __init__(self, x, y, width, height):
         super().__init__()
         scale_factor = 0.8
+        self.lives = 5
         self.images = {
             "idle": load_image(resource_path("images/Стойка.png"), scale_factor),
             "right": [
@@ -44,6 +46,7 @@ class Player(pygame.sprite.Sprite):
         self._y_speed = 0
         self._gravity = self.GRAVITY
         self._is_jumping = False
+        self._double_jump_available = False  # <-- новая строка
         self._direction = "right"
         self.WIDTH = width
         self.HEIGHT = height
@@ -91,15 +94,31 @@ class Player(pygame.sprite.Sprite):
             raise ValueError("Направление должно быть 'left' или 'right'")
         self._direction = value
 
-    def update(self, platforms):
+    def update(self, platforms, enemies_group, audio_manager, kick_sound):
         self.rect.x += self._x_speed
         prev_y = self.rect.y
         self._y_speed += self._gravity
         self.rect.y += self._y_speed
         self._is_jumping = self._y_speed != 0
+
+        self._handle_enemy_collision(enemies_group, audio_manager, kick_sound)
+
+        if self._y_speed == 0 and self._is_jumping:
+            self._is_jumping = False
+
         self._handle_collisions(platforms, prev_y)
         self._apply_boundaries()
         self.animate()
+
+    def _handle_enemy_collision(self, enemies_group, audio_manager, kick_sound):
+        enemy_collisions = pygame.sprite.spritecollide(self, enemies_group, False)
+        for enemy in enemy_collisions:
+            if self._y_speed > 0 and self.rect.bottom <= enemy.rect.top + 10:
+                enemies_group.remove(enemy)
+                enemy.kill()
+                self._y_speed = -8
+                audio_manager.play_sound(kick_sound)
+                break
 
     def _handle_collisions(self, platforms, prev_y):
         collisions = pygame.sprite.spritecollide(self, platforms, False)
@@ -108,6 +127,7 @@ class Player(pygame.sprite.Sprite):
                 self.rect.bottom = platform.rect.top
                 self._y_speed = 0
                 self._is_jumping = False
+                self._double_jump_available = True  # Восстанавливаем двойной прыжок
             elif prev_y >= platform.rect.bottom:
                 self.rect.top = platform.rect.bottom
                 self._y_speed = 0
@@ -126,6 +146,8 @@ class Player(pygame.sprite.Sprite):
             self.rect.bottom = self.HEIGHT + 150
             self._y_speed = 0
             self._is_jumping = False
+            # Вызываем событие падения
+            self.on_fall()
 
     def animate(self):
         if self._is_jumping:
@@ -143,6 +165,29 @@ class Player(pygame.sprite.Sprite):
         if not self._is_jumping:
             self._y_speed = self.JUMP_FORCE
             self._is_jumping = True
+        elif self._double_jump_available:
+            self._y_speed = self.DOUBLE_JUMP_FORCE
+            self._double_jump_available = False  # Использовали двойной прыжок
+
+    def enable_double_jump(self):
+        self._double_jump_available = True
 
     def drop_down(self):
         self._y_speed = 10
+
+    def on_fall(self):
+        global lives
+        lives -= 1
+        if lives <= 0:
+            from src.Game_loop import show_game_over_screen
+            show_game_over_screen(pygame.display.get_surface())
+        else:
+            from src.Game_loop import restart_level
+            restart_level(pygame.display.get_surface(), self.level_number)
+
+    def take_damage(self):
+        self.lives -= 1
+        print(f"[DEBUG] Игрок получил урон! Осталось жизней: {self.lives}")
+        if self.lives <= 0:
+            from src.Game_loop import show_game_over_screen
+            show_game_over_screen(pygame.display.get_surface())

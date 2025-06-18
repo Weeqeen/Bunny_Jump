@@ -49,7 +49,7 @@ from src.audio_manager import AudioManager
 def show_main_menu():
     """Отображает главное меню без рекурсивного запуска Run()"""
     audio_manager = AudioManager()
-    audio_manager.load_music(resource_path("sounds/main_menu_music.mp3"))
+    audio_manager.load_music(resource_path("sounds/main_menu_music.wav"))
     audio_manager.set_music_volume(SETTINGS['music_volume'])
     audio_manager.play_music(loops=-1)
 

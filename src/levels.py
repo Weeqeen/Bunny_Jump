@@ -11,11 +11,14 @@ LEVELS = {
             {"x": 775, "y": 390, "width": 150, "height": 30, "image": "images/levels/tile.png"},
             {"x": 850, "y": 290, "width": 150, "height": 30, "image": "images/levels/tile.png"}
         ],
+        "enemies": [
+            {"x": 475, "y": 653, "move_range": 950, "speed": 4},
+        ],
         "carrots": [(10, 250), (310, 430), (480, 125), (980, 615)],
         "finish": (930, 205),
         "finish_images": ["images/finish_0.png", "images/finish_1.png", "images/finish_2.png",
                          "images/finish_3.png", "images/finish_4.png"],
-        "music": "sounds/level1_music.mp3",
+        "music": "sounds/level1_music.ogg",
 
     },
     2: {
@@ -29,6 +32,9 @@ LEVELS = {
             {"x": 220, "y": 190, "width": 100, "height": 40, "image": "images/levels/Plattform schnee.png"},
             {"x": 15, "y": 290, "width": 150, "height": 40, "image": "images/levels/Plattform schnee.png"},
             {"x": 830, "y": 290, "width": 150, "height": 40, "image": "images/levels/Plattform schnee.png"},
+        ],
+        "enemies": [
+            {"x": 475, "y": 653, "move_range": 950, "speed": 4},
         ],
         "carrots": [(0, 650), (15, 265), (1000, 670), (440, 465)],
         "finish": (900, 203),
@@ -48,6 +54,9 @@ LEVELS = {
             {"x": 490, "y": 315, "width": 75, "height": 75, "image": "images/levels/RTS_Crate.png"},
             {"x": 200, "y": 315, "width": 75, "height": 75, "image": "images/levels/RTS_Crate.png"},
         ],
+        "enemies": [
+            {"x": 475, "y": 653, "move_range": 950, "speed": 4},
+        ],
         "carrots": [(75, 190), (510, 290), (950, 660)],
         "finish": (970, 605),
         "finish_images": ["images/finish_0.png", "images/finish_1.png", "images/finish_2.png",
@@ -55,18 +64,22 @@ LEVELS = {
         "music": "sounds/level3_music.mp3",
     },
     4: {
-        "background": "images/levels/Desert Clean.png",
-        "ground_image": "images/levels/26.png",
+        "background": "images/levels/hell_background.jpg",
+        "ground_image": "images/levels/LavaTile set.png",
         "platforms": [
-            {"x": 50, "y": 590, "width": 150, "height": 40, "image": "images/levels/26.png"},
-            {"x": 250, "y": 500, "width": 150, "height": 40, "image": "images/levels/26.png"},
-            {"x": 450, "y": 420, "width": 150, "height": 40, "image": "images/levels/26.png"},
-            {"x": 650, "y": 340, "width": 150, "height": 40, "image": "images/levels/26.png"}
+            {"x": 100000, "y": 10000, "width": 150, "height": 40, "image": "images/levels/LavaTile set.png"}
         ],
-        "carrots": [(200, 480), (600, 380)],
-        "finish": (800, 320),
+        "boss": {
+            "x": 500,             # Позиция босса по горизонтали
+            "y": 540,             # Позиция босса по вертикали
+            "health": 10,         # Здоровье босса
+            "move_range": 300,    # На сколько пикселей босс может уйти от своей начальной позиции
+            "speed": 3            # Скорость передвижения босса
+        },
+        "carrots": [(100000, 10000), (10000, 10000)],
+        "finish": (100000, 10000),
         "finish_images": ["images/finish_0.png", "images/finish_1.png", "images/finish_2.png",
                          "images/finish_3.png", "images/finish_4.png"],
-        "music": "sounds/level4_music.mp3",
+        "music": "sounds/level4_music.ogg",
     },
 }
