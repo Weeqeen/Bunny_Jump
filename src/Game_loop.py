@@ -164,13 +164,12 @@ def restart_level(screen, level):
 def pause_menu(screen, level):
     clock = pygame.time.Clock()
     bg_path = load_image(resource_path("images/pause_menu_background.png"), scale_factor=1)
-    bg = pygame.transform.scale(bg_path, (WIDTH, HEIGHT + 200))
+    bg = pygame.transform.scale(bg_path, (WIDTH, HEIGHT + 120))
 
     button_width = 260
     button_height = 60
     button_x = WIDTH // 2 - button_width // 2
     vertical_spacing = 20
-    start_y = HEIGHT // 2 - (button_height + vertical_spacing)
 
     while True:
         screen.blit(bg, (0, 0))
@@ -237,12 +236,6 @@ def display_stars(surface, stars, x, y):
     empty_star = load_image(resource_path("images/star_empty.png"), scale_factor=1)
     full_star = pygame.transform.scale(full_star, (STAR_SIZE, STAR_SIZE))
     empty_star = pygame.transform.scale(empty_star, (STAR_SIZE, STAR_SIZE))
-
-    for i in range(3):
-        if i < stars:
-            surface.blit(full_star, (x + i * (STAR_SIZE + SPACING), y))
-        else:
-            surface.blit(empty_star, (x + i * (STAR_SIZE + SPACING), y))
 
     for i in range(3):
         if i < stars:
@@ -325,7 +318,7 @@ def show_ghost(screen, audio_manager):
     audio_manager.stop_all_sounds()
     ghost_images = [load_image(resource_path(f"images/ghost_{i}.png"), scale_factor=1) for i in range(5)]
 
-    Ghost_Scale_Factor = 5  # Масштабируем в 3 раза
+    Ghost_Scale_Factor = 5
     ghost_images = [
         pygame.transform.scale(image, (image.get_width() * Ghost_Scale_Factor, image.get_height() * Ghost_Scale_Factor))
         for image in ghost_images]
@@ -334,7 +327,7 @@ def show_ghost(screen, audio_manager):
     bg = pygame.transform.scale(bg, (WIDTH, HEIGHT + 200))
 
     ghost_index = 0
-    animation_speed = 100  # ms между кадрами
+    animation_speed = 100
     last_update = pygame.time.get_ticks()
 
     ghost_sound = audio_manager.load_sound(resource_path("sounds/ghost_sound.mp3"))
@@ -345,7 +338,6 @@ def show_ghost(screen, audio_manager):
         now = pygame.time.get_ticks()
         screen.blit(bg, (0, 0))
 
-        # Обновление анимации духа
         if now - last_update > animation_speed:
             ghost_index = (ghost_index + 1) % len(ghost_images)
             last_update = now
@@ -389,7 +381,6 @@ def game_loop(screen, level):
     carrot_sound = audio_manager.load_sound(resource_path("sounds/carrot_pickup.mp3"))
     carrot_sound.set_volume(1.0)
     level_complete_sound = audio_manager.load_sound(resource_path("sounds/level_complete.wav"))
-    game_complete_sound = audio_manager.load_sound(resource_path("sounds/game_complete.mp3"))
 
     bg_path = level_data["background"]
     bg = load_image(resource_path(bg_path), scale_factor=1)
@@ -465,7 +456,7 @@ def game_loop(screen, level):
             audio_manager.play_sound(level_complete_sound)
             if level == 4:
                 pygame.mixer.music.stop()
-                if total_carrots_collected > 6:
+                if total_carrots_collected > 10:
                     show_victory(screen, audio_manager)
                 else:
                     show_ghost(screen, audio_manager)

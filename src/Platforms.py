@@ -3,7 +3,6 @@ from src.load_image import load_image
 from src.Small_func import resource_path
 
 
-
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
